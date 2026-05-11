@@ -1,0 +1,12 @@
+[
+  {
+    "image": "images/image1.png",
+    "question": "You are analyzing a pc screenshot. Describe what you see in less than 2 sentences",
+    "grounded_answer": "Windows login screen. User Amanda"
+  },
+  {
+    "image": "images/image2.png",
+    "question": "You are analyzing a pc screenshot. Describe what you see in less than 2 sentences ",
+    "grounded_answer": "Windows 7 desktop environment, captured at 4:21 PM on May 9, 2017. Recycle Bin icon top left. Taskbar at bottom with start menu and pinned apps: internet explorer, windows explorer, windows media player"
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "model": "openai/gpt-4.1-mini",
+    "image": "image1.png",
+    "total_cases": 1,
+    "grounded_cases": 1,
+    "passed": 1,
+    "accuracy_pct": 100.0,
+    "total_time_s": 3.0,
+    "avg_per_case_s": 2.98,
+    "avg_tokens_per_second": 32.3,
+    "total_input_tokens": 676,
+    "total_output_tokens": 96,
+    "results": [
+      {
+        "question": "What does this image show? Describe what you see.",
+        "model_response": "This image shows a computer login screen for a user named \"Amanda.\" The background is primarily dark blue with a wave-like design. In the center, there is a circular icon representing a user profile, which is a simple white silhouette of a person on a blue circle. Below the icon is the name \"Amanda\" in white text. Beneath the name, there is a password input field with the placeholder text \"Password\" and a right arrow button to submit the password.",
+        "grounded_answer": "login",
+        "match": true,
+        "time_seconds": 2.98,
+        "input_tokens": 676,
+        "output_tokens": 96,
+        "tokens_per_second": 32.3
+      }
+    ]
+  },
+  {
+    "model": "qwen/qwen3-vl-8b-instruct",
+    "image": "image1.png",
+    "total_cases": 1,
+    "grounded_cases": 1,
+    "passed": 1,
+    "accuracy_pct": 100.0,
+    "total_time_s": 8.02,
+    "avg_per_case_s": 8.02,
+    "avg_tokens_per_second": 28.6,
+    "total_input_tokens": 385,
+    "total_output_tokens": 229,
+    "results": [
+      {
+        "question": "What does this image show? Describe what you see.",
+        "model_response": "This image shows a computer login screen, specifically for a user named \u201cAmanda.\u201d\n\nHere\u2019s a detailed description of what you see:\n\n- **Background**: A dark blue background with abstract, flowing wave-like shapes in lighter shades of blue, creating a modern and sleek aesthetic.\n- **User Icon**: Centered on the screen is a white, minimalist icon of a person (a silhouette of a head and shoulders) inside a faint circular outline.\n- **Username**: Directly below the icon, the name \u201cAmanda\u201d is displayed in a clean, white sans-serif font.\n- **Password Field**: Beneath the username, there is a dark gray rectangular input field labeled \u201cPassword\u201d on the left. This is where the user would type their password.\n- **Submit Button**: To the right of the password field is a small square button with a white right-pointing arrow (\u2192), which is typically used to submit the login credentials.\n\nOverall, this is a typical graphical user login interface, likely from a modern operating system (such as Windows, macOS, or Linux), prompting the user to enter their password to access their account.",
+        "grounded_answer": "login",
+        "match": true,
+        "time_seconds": 8.02,
+        "input_tokens": 385,
+        "output_tokens": 229,
+        "tokens_per_second": 28.6
+      }
+    ]
+  }
+]
