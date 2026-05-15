@@ -16,9 +16,8 @@ import re
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
-# JUDGE_MODEL = "openai/gpt-5"
 JUDGE_MODEL = "openai/gpt-5.4-mini"
-OPENROUTER_MODELS_FILE = "openrouter_models.json"
+OPENROUTER_MODELS_FILE = "gpt_models.json"
 TEST_CASES_FILE = "test_case.json"
 MAX_TOKENS = 512
 
@@ -44,7 +43,7 @@ def encode_image_to_base64(image_path):
     return f"data:{mime_type};base64,{encoded}"
 
 
-def call_openrouter(model, messages, max_tokens):
+def call_openrouter(model, messages, max_tokens, provider=None):
     """Call the OpenRouter chat completions API."""
     import urllib.request
     import urllib.error
@@ -53,7 +52,10 @@ def call_openrouter(model, messages, max_tokens):
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
+        "temperature": 0.0,
     }
+    if provider:
+        payload["provider"] = provider
 
     data = json.dumps(payload).encode("utf-8")
 
@@ -114,7 +116,7 @@ def judge_response(question, grounded_answer, model_response):
         return None
 
 
-def run_benchmark(model, tests, max_tokens):
+def run_benchmark(model, tests, max_tokens, provider=None):
     """Run benchmark for a single model via OpenRouter API."""
     safe_name = sanitize_model_name(model)
 
@@ -149,13 +151,14 @@ def run_benchmark(model, tests, max_tokens):
         messages = [{"role": "user", "content": content}]
 
         try:
-            response_data, elapsed = call_openrouter(model, messages, max_tokens)
+            response_data, elapsed = call_openrouter(model, messages, max_tokens, provider=provider)
         except Exception as e:
             print(f"\n  ❌ API call failed: {e}")
             results.append({
                 "question": question,
                 "model_response": f"ERROR: {e}",
                 "grounded_answer": grounded,
+                "image": image_path,
                 "accuracy_score": None,
                 "time_seconds": 0,
                 "input_tokens": 0,
@@ -209,6 +212,7 @@ def run_benchmark(model, tests, max_tokens):
             "question": question,
             "model_response": response_text,
             "grounded_answer": grounded,
+            "image": image_path,
             "accuracy_score": accuracy_score,
             "time_seconds": round(elapsed, 2),
             "input_tokens": input_tokens,
@@ -300,34 +304,9 @@ def generate_html_report(summaries, output_path):
           <td>{s['total_output_tokens']}</td>
         </tr>"""
 
-    # Build per-model detail sections
-    model_sections = ""
+    # Build per-model summary cards
+    model_summary_section = ""
     for s in summaries:
-        case_rows = ""
-        for i, r in enumerate(s.get("results", []), 1):
-            score = r.get("accuracy_score")
-            if score is not None:
-                if score >= 7:
-                    score_cell = f'<td style="color:#16a34a;font-weight:bold;">{score}/10</td>'
-                elif score >= 4:
-                    score_cell = f'<td style="color:#d97706;font-weight:bold;">{score}/10</td>'
-                else:
-                    score_cell = f'<td style="color:#dc2626;font-weight:bold;">{score}/10</td>'
-            else:
-                score_cell = '<td style="color:#999;">N/A</td>'
-
-            response_escaped = html.escape(r.get("model_response", ""))
-            case_rows += f"""
-            <tr>
-              <td>{i}</td>
-              <td>{html.escape(r.get('question', ''))}</td>
-              <td style="max-width:600px;">{response_escaped}</td>
-              <td>{html.escape(r.get('grounded_answer', ''))}</td>
-              {score_cell}
-              <td>{r.get('time_seconds', 0):.2f}s</td>
-              <td>{r.get('tokens_per_second', 0):.1f}</td>
-            </tr>"""
-
         avg_judge = s.get("avg_judge_score")
         if avg_judge is not None:
             if avg_judge >= 7:
@@ -339,9 +318,9 @@ def generate_html_report(summaries, output_path):
         else:
             summary_score = '<span style="color:#999;">N/A</span>'
 
-        model_sections += f"""
-    <div class="model-section">
-      <h2>{html.escape(s['model'])}</h2>
+        model_summary_section += f"""
+    <div class="model-card">
+      <h3>{html.escape(s['model'])}</h3>
       <div class="summary-grid">
         <div class="stat-card">
           <div class="stat-label">Avg Judge Score</div>
@@ -360,11 +339,77 @@ def generate_html_report(summaries, output_path):
           <div class="stat-value">{s['total_input_tokens']} / {s['total_output_tokens']}</div>
         </div>
       </div>
+    </div>"""
+
+    # Build per-test-case sections (image/question/expected shown once, model responses compared)
+    max_cases = max((len(s.get("results", [])) for s in summaries), default=0)
+    test_case_sections = ""
+    for case_idx in range(max_cases):
+        # Get shared test case info from the first model that has this case
+        case_info = None
+        for s in summaries:
+            results = s.get("results", [])
+            if case_idx < len(results):
+                case_info = results[case_idx]
+                break
+
+        if not case_info:
+            continue
+
+        question = case_info.get("question", "")
+        grounded = case_info.get("grounded_answer", "")
+        img_path = case_info.get("image", "")
+
+        # Embed image once
+        image_html = ""
+        if img_path and os.path.exists(img_path):
+            img_b64 = encode_image_to_base64(img_path)
+            image_html = f'<img src="{img_b64}" alt="{html.escape(img_path)}" style="max-height:300px;border-radius:8px;border:1px solid #e2e8f0;" />'
+
+        # Build comparison rows: one row per model
+        comparison_rows_html = ""
+        for s in summaries:
+            results = s.get("results", [])
+            if case_idx >= len(results):
+                continue
+            r = results[case_idx]
+
+            score = r.get("accuracy_score")
+            if score is not None:
+                if score >= 7:
+                    score_cell = f'<td style="color:#16a34a;font-weight:bold;">{score}/10</td>'
+                elif score >= 4:
+                    score_cell = f'<td style="color:#d97706;font-weight:bold;">{score}/10</td>'
+                else:
+                    score_cell = f'<td style="color:#dc2626;font-weight:bold;">{score}/10</td>'
+            else:
+                score_cell = '<td style="color:#999;">N/A</td>'
+
+            response_escaped = html.escape(r.get("model_response", ""))
+            comparison_rows_html += f"""
+            <tr>
+              <td>{html.escape(s['model'])}</td>
+              <td style="max-width:600px;">{response_escaped}</td>
+              {score_cell}
+              <td>{r.get('time_seconds', 0):.2f}s</td>
+              <td>{r.get('tokens_per_second', 0):.1f}</td>
+            </tr>"""
+
+        test_case_sections += f"""
+    <div class="test-case-section">
+      <h2>Test Case {case_idx + 1}</h2>
+      <div class="case-info">
+        {image_html}
+        <div class="case-details">
+          <p><strong>Question:</strong> {html.escape(question)}</p>
+          <p><strong>Expected Answer:</strong> {html.escape(grounded)}</p>
+        </div>
+      </div>
       <table>
         <thead>
-          <tr><th>#</th><th>Question</th><th>Model Response</th><th>Expected</th><th>Score</th><th>Time</th><th>TPS</th></tr>
+          <tr><th>Model</th><th>Response</th><th>Score</th><th>Time</th><th>TPS</th></tr>
         </thead>
-        <tbody>{case_rows}
+        <tbody>{comparison_rows_html}
         </tbody>
       </table>
     </div>"""
@@ -387,8 +432,13 @@ def generate_html_report(summaries, output_path):
     th {{ background: #f1f5f9; padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }}
     td {{ padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }}
     tr:hover {{ background: #f8fafc; }}
-    .model-section {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
-    .model-section h2 {{ font-size: 1.2rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
+    .model-card {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+    .model-card h3 {{ font-size: 1.1rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
+    .test-case-section {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
+    .test-case-section h2 {{ font-size: 1.2rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
+    .case-info {{ display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: flex-start; flex-wrap: wrap; }}
+    .case-details {{ flex: 1; min-width: 300px; }}
+    .case-details p {{ margin-bottom: 0.5rem; line-height: 1.5; }}
     .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }}
     .stat-card {{ background: #f8fafc; border-radius: 8px; padding: 1rem; text-align: center; }}
     .stat-label {{ font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }}
@@ -412,7 +462,12 @@ def generate_html_report(summaries, output_path):
       </table>
     </div>
 
-    {model_sections}
+    <div class="comparison">
+      <h2>Model Summary</h2>
+      {model_summary_section}
+    </div>
+
+    {test_case_sections}
   </div>
 </body>
 </html>"""
@@ -453,10 +508,12 @@ def main():
             sys.exit(1)
 
     # Determine which models to benchmark
+    provider = None
     if args.all:
         with open(OPENROUTER_MODELS_FILE) as f:
             models_config = json.load(f)
-        models = [entry["name"] if isinstance(entry, dict) else entry for entry in models_config]
+        provider = models_config.get("provider")
+        models = [entry["name"] if isinstance(entry, dict) else entry for entry in models_config.get("models", models_config)]
         print(f"Found {len(models)} model(s) in {OPENROUTER_MODELS_FILE}")
     elif args.model:
         models = [args.model]
@@ -476,7 +533,7 @@ def main():
 
     for model in models:
         try:
-            summary = run_benchmark(model, tests, args.max_tokens)
+            summary = run_benchmark(model, tests, args.max_tokens, provider=provider)
             summaries.append(summary)
         except Exception as e:
             print(f"\n  ❌ FAILED: {model}: {e}")
