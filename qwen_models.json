@@ -1,0 +1,24 @@
+{
+  "provider": {
+    "order": ["alibaba"]
+  },
+  "models": [
+    { "name": "qwen/Qwen2-VL-2B-Instruct-4bit" },
+    { "name": "qwen/Qwen2-VL-7B-Instruct-4bit" },
+    { "name": "qwen/qwen2.5-vl-3b-instruct" },
+    { "name": "qwen/qwen2.5-vl-7b-instruct" },
+    { "name": "qwen/qwen2.5-vl-32b-instruct" },
+    { "name": "Qwen/Qwen3-VL-2B-Instruct" },
+    { "name": "Qwen/Qwen3-VL-4B-Instruct-4bit" },
+    { "name": "qwen/qwen3-vl-8b-instruct" },
+    { "name": "qwen/qwen3-vl-32b-instruct" },
+    { "name": "qwen/qwen3-vl-30b-a3b-instruct" },
+    { "name": "qwen/Qwen3.5-2B-4bit" },
+    { "name": "qwen/Qwen3.5-4B" },
+    { "name": "qwen/qwen3.5-9b" },
+    { "name": "qwen/qwen3.5-27b" },
+    { "name": "qwen/qwen3.5-35b-a3b" },
+    { "name": "qwen/qwen3.6-27b" },
+    { "name": "qwen/Qwen3.6-35B-A3B-4bit" }
+  ]
+}

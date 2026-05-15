@@ -1,0 +1,10 @@
+{
+  "provider": {
+    "order": ["deepinfra"]
+  },
+  "models": [
+    { "name": "meta-llama/llama-3.2-11b-vision-instruct" },
+    { "name": "meta-llama/llama-4-maverick" },
+    { "name": "meta-llama/llama-4-scout" }
+  ]
+}
