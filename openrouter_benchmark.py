@@ -16,8 +16,8 @@ import re
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
-JUDGE_MODEL = "openai/gpt-5.4-mini"
-OPENROUTER_MODELS_FILE = "gpt_models.json"
+JUDGE_MODEL = "openai/gpt-5.4"
+OPENROUTER_MODELS_FILE = "models.json"
 TEST_CASES_FILE = "test_case.json"
 MAX_TOKENS = 512
 
@@ -89,7 +89,7 @@ def judge_response(question, grounded_answer, model_response):
         f"The expected answer is:\n\"{grounded_answer}\"\n\n"
         f"The model responded:\n\"{model_response}\"\n\n"
         f"Rate how accurately the model's response matches the expected answer "
-        f"on a scale of 0 to 10, where 0 is completely wrong and 10 is a perfect match. "
+        f"on a scale of 0 to 10, where 0 is completely wrong and 10 is when all points in the expected answer are covered. "
         f"Reply with only a single number."
     )
 
@@ -140,7 +140,10 @@ def run_benchmark(model, tests, max_tokens, provider=None):
             print(f"\n  ❌ Image not found: {image_path}")
             continue
 
+        category = case.get("category", "")
         print(f"\n  Image: {image_path}")
+        if category:
+            print(f"  Category: {category}")
         image_b64 = encode_image_to_base64(image_path)
 
         # Build messages
@@ -159,6 +162,7 @@ def run_benchmark(model, tests, max_tokens, provider=None):
                 "model_response": f"ERROR: {e}",
                 "grounded_answer": grounded,
                 "image": image_path,
+                "category": category,
                 "accuracy_score": None,
                 "time_seconds": 0,
                 "input_tokens": 0,
@@ -213,6 +217,7 @@ def run_benchmark(model, tests, max_tokens, provider=None):
             "model_response": response_text,
             "grounded_answer": grounded,
             "image": image_path,
+            "category": category,
             "accuracy_score": accuracy_score,
             "time_seconds": round(elapsed, 2),
             "input_tokens": input_tokens,
@@ -359,6 +364,7 @@ def generate_html_report(summaries, output_path):
         question = case_info.get("question", "")
         grounded = case_info.get("grounded_answer", "")
         img_path = case_info.get("image", "")
+        category = case_info.get("category", "")
 
         # Embed image once
         image_html = ""
@@ -395,9 +401,10 @@ def generate_html_report(summaries, output_path):
               <td>{r.get('tokens_per_second', 0):.1f}</td>
             </tr>"""
 
+        category_badge = f'<span style="background:#e0e7ff;color:#3730a3;padding:0.2rem 0.6rem;border-radius:9999px;font-size:0.8rem;font-weight:600;">{html.escape(category)}</span>' if category else ''
         test_case_sections += f"""
     <div class="test-case-section">
-      <h2>Test Case {case_idx + 1}</h2>
+      <h2>Test Case {case_idx + 1} {category_badge}</h2>
       <div class="case-info">
         {image_html}
         <div class="case-details">
@@ -559,17 +566,25 @@ def main():
             score_str = f"{avg_judge}/10" if avg_judge is not None else "N/A"
             print(f"{short:<40} {s['avg_tokens_per_second']:>9.1f} {s['avg_per_case_s']:>9.2f}s {score_str:>10}")
 
+    # Build a model label for filenames
+    if args.all:
+        model_label = os.path.splitext(OPENROUTER_MODELS_FILE)[0]
+    elif args.model:
+        model_label = sanitize_model_name(args.model)
+    else:
+        model_label = "unknown"
+
     # Save combined results to a single JSON file
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
-    combined_output = os.path.join(output_dir, f"results_{timestamp}.json")
+    combined_output = os.path.join(output_dir, f"results_{model_label}_{timestamp}.json")
     with open(combined_output, "w") as f:
         json.dump(summaries, f, indent=2)
     print(f"\nCombined results saved to: {combined_output}")
 
     # Generate HTML report
-    html_output = os.path.join(output_dir, f"results_{timestamp}.html")
+    html_output = os.path.join(output_dir, f"results_{model_label}_{timestamp}.html")
     generate_html_report(summaries, html_output)
     print(f"HTML report saved to: {html_output}")
 

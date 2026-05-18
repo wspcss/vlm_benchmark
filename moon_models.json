@@ -1,0 +1,9 @@
+{
+  "provider": {
+    "order": ["deepinfra/fp4"]
+  },
+  "models": [
+    { "name": "moonshotai/Kimi-K2.5" },
+    { "name": "moonshotai/Kimi-K2.6" }
+  ]
+}

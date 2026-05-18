@@ -1,7 +1,8 @@
 [
   {
     "image": "images/image0.jpg",
-    "question": "You are analyzing a pc screenshot. Describe what the user is doing at this moment in 2 short sentences",
-    "grounded_answer": "Windows 10 login screen. User Admnistrator. Entered password in the text field"
+    "question": "You are analyzing a pc screenshot. Describe what the user is doing in 2 short sentences",
+    "grounded_answer": "Windows 10 login screen. User Admnistrator. Entered password in the text field",
+    "category": "General Understanding"
   }
 ]

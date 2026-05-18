@@ -1,3 +1,4 @@
 .history/
 .env   
-output/results*
+output/*
+__pycache__/*

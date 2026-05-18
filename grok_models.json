@@ -1,0 +1,9 @@
+{
+  "provider": {
+    "order": ["xai"]
+  },
+  "models": [
+    { "name": "x-ai/grok-4.20" },
+    { "name": "x-ai/grok-4.3" }
+  ]
+}

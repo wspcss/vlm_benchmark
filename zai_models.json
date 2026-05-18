@@ -1,0 +1,10 @@
+{
+  "provider": {
+    "order": ["z-ai/fp8"]
+  },
+  "models": [
+    { "name": "z-ai/glm-4.5v" },
+    { "name": "z-ai/glm-4.6v" },
+    { "name": "z-ai/glm-5v-turbo" }
+  ]
+}
