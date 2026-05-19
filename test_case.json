@@ -4,5 +4,47 @@
     "question": "You are analyzing a pc screenshot. Describe what the user is doing in 2 short sentences",
     "grounded_answer": "Windows 10 login screen. User Admnistrator. Entered password in the text field",
     "category": "General Understanding"
-  }
+  },
+  {
+    "image": "images/win_multi_window.png",
+    "question": "List every visible app window without any description",
+    "grounded_answer": "OpenAI Webpage (Chrome/Browser), GitHub Repository Issue Page (Chrome/Browser), Command Prompt / Terminal, Microsoft PowerPoint, Visual Studio Code",
+    "category": "Application enumeration"
+  },
+  {
+    "image": "images/linux_multi_window.png",
+    "question": "List every visible app window without any description",
+    "grounded_answer": "Mozilla Firefox, xclock, terminal, cmake 3.31.2 GUI, screenshot folder (file manager), Untitled.md (text editor), htop (terminal / system monitor)",
+    "category": "Application enumeration"
+  },
+  {
+    "image": "images/mac_multi_window.png",
+    "question": "List every visible app window without any description",
+    "grounded_answer": "Utilities folder (finder), chatgpt(chrome), Zotero (PDF viewer), Annotations folder (FInder), System settings (Wi-Fi), python annotation.py( text editor)",
+    "category": "Application enumeration"
+  },
+  {
+    "image": "images/win_multi_window.png",
+    "question": "Which window is currently focused? List the name of the application and the title of the window if available.",
+    "grounded_answer": " Microsoft PowerPoint, qe.pptx",
+    "category": "Focused window"
+  },
+  {
+    "image": "images/linux_ocr.jpg",
+    "question": "Extract all text inside the command prompt",
+    "grounded_answer": "itechguides@itechguides-Virtual-Machine:~/Desktop$ sudo snap install zoom-client [sudo] password for itechguides: Download snap \"zoom-client\" (192) from channel \"stable\"          1% 1.59MB/s 3m58s",
+    "category": "OCR Extraction"
+  },
+  {
+    "image": "images/numeric_state_reading.jpg",
+    "question": "Examine the provided Windows desktop screenshot. Extract the following system metrics and format them as a structured list: CPU: Usage percentage and clock speed. Memory: Percentage used. Disk 0 (C:): Active time percentage, Read speed, and Write speed. Ethernet: Throughput (Send and Receive speeds). System Time: The exact time and date displayed in the bottom-right corner of the taskbar.",
+    "grounded_answer": "CPU: 54% | 2.30 GHz, Memory: 39% (2.4/6.1 GB), Disk 0 (C:): 6%, Disk Read Speed: 1.1 MB/s Disk Write Speed: 1.6 MB/s, Ethernet: S: 0 R: 0 Kbps, Clock Time: 5:07 PM, Date: 2/2/2017",
+    "category": "Numeric State Reading"
+  },  
+  {
+    "image": "images/cwd.png",
+    "question": "What is the current working directory?",
+    "grounded_answer": "~/Videos/venv/bin",
+    "category": "CWD identification"
+  } 
 ]

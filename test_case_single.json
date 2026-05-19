@@ -1,0 +1,8 @@
+[
+  {
+    "image": "images/numeric_state_reading.jpg",
+    "question": "Examine the provided Windows desktop screenshot. Extract the following system metrics and format them as a structured list: CPU: Usage percentage and clock speed. Memory: Percentage used. Disk 0 (C:): Active time percentage, Read speed, and Write speed. Ethernet: Throughput (Send and Receive speeds). System Time: The exact time and date displayed in the bottom-right corner of the taskbar.",
+    "grounded_answer": "CPU: 54% | 2.30 GHz, Memory: 39% (2.4/6.1 GB), Disk 0 (C:): 6%, Disk Read Speed: 1.1 MB/s Disk Write Speed: 1.6 MB/s, Ethernet: S: 0 R: 0 Kbps, Clock Time: 5:07 PM, Date: 2/2/2017",
+    "category": "Numeric State Reading"
+  }
+]
