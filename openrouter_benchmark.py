@@ -309,43 +309,6 @@ def generate_html_report(summaries, output_path):
           <td>{s['total_output_tokens']}</td>
         </tr>"""
 
-    # Build per-model summary cards
-    model_summary_section = ""
-    for s in summaries:
-        avg_judge = s.get("avg_judge_score")
-        if avg_judge is not None:
-            if avg_judge >= 7:
-                summary_score = f'<span style="color:#16a34a;font-weight:bold;font-size:1.2em;">{avg_judge:.1f}/10</span>'
-            elif avg_judge >= 4:
-                summary_score = f'<span style="color:#d97706;font-weight:bold;font-size:1.2em;">{avg_judge:.1f}/10</span>'
-            else:
-                summary_score = f'<span style="color:#dc2626;font-weight:bold;font-size:1.2em;">{avg_judge:.1f}/10</span>'
-        else:
-            summary_score = '<span style="color:#999;">N/A</span>'
-
-        model_summary_section += f"""
-    <div class="model-card">
-      <h3>{html.escape(s['model'])}</h3>
-      <div class="summary-grid">
-        <div class="stat-card">
-          <div class="stat-label">Avg Judge Score</div>
-          <div class="stat-value">{summary_score}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Avg TPS</div>
-          <div class="stat-value">{s['avg_tokens_per_second']:.1f}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Avg Time/Case</div>
-          <div class="stat-value">{s['avg_per_case_s']:.2f}s</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Total Tokens</div>
-          <div class="stat-value">{s['total_input_tokens']} / {s['total_output_tokens']}</div>
-        </div>
-      </div>
-    </div>"""
-
     # Build per-test-case sections (image/question/expected shown once, model responses compared)
     max_cases = max((len(s.get("results", [])) for s in summaries), default=0)
     test_case_sections = ""
@@ -439,18 +402,11 @@ def generate_html_report(summaries, output_path):
     th {{ background: #f1f5f9; padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }}
     td {{ padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }}
     tr:hover {{ background: #f8fafc; }}
-    .model-card {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
-    .model-card h3 {{ font-size: 1.1rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
     .test-case-section {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
     .test-case-section h2 {{ font-size: 1.2rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
     .case-info {{ display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: flex-start; flex-wrap: wrap; }}
     .case-details {{ flex: 1; min-width: 300px; }}
     .case-details p {{ margin-bottom: 0.5rem; line-height: 1.5; }}
-    .summary-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }}
-    .stat-card {{ background: #f8fafc; border-radius: 8px; padding: 1rem; text-align: center; }}
-    .stat-label {{ font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }}
-    .stat-value {{ font-size: 1.1rem; font-weight: 600; color: #0f172a; }}
-    .badge {{ display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }}
   </style>
 </head>
 <body>
@@ -467,11 +423,6 @@ def generate_html_report(summaries, output_path):
         <tbody>{comparison_rows}
         </tbody>
       </table>
-    </div>
-
-    <div class="comparison">
-      <h2>Model Summary</h2>
-      {model_summary_section}
     </div>
 
     {test_case_sections}
