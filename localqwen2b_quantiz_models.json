@@ -1,0 +1,12 @@
+[
+  { "name": "mlx-community/Qwen3.5-2B-3bit" },
+  { "name": "mlx-community/Qwen3.5-2B-4bit" },
+  { "name": "mlx-community/Qwen3.5-2B-6bit" },
+  { "name": "mlx-community/Qwen3.5-2B-8bit" },
+  { "name": "mlx-community/Qwen3.5-2B-MLX-4bit" },
+  { "name": "mlx-community/Qwen3.5-2B-OptiQ-4bit" },
+  { "name": "mlx-community/Qwen3.5-2B-nvfp4" },
+  { "name": "mlx-community/Qwen3.5-2B-mxfp8" },
+  { "name": "mlx-community/Qwen3.5-2B-bf16" },
+  { "name": "mlx-community/Qwen3.5-2B-MLX-bf16" }
+] 

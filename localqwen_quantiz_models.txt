@@ -1,0 +1,16 @@
+4bit
+The Concept: This is a generic, baseline tag. It almost always means uniform INT4 (4-bit integer) rounding.
+
+mlx 4bit
+The Concept: This indicates a model converted specifically for Apple's MLX framework to run natively on Apple Silicon.
+
+bf16 mixed_4_8 (or 4_8_mixed)
+The Concept: A highly sophisticated, hybrid mixed-precision MLX format designed to save VRAM while protecting structural and visual accuracy.
+
+optiq 4bit (via mlx-optiq)The Concept: A bleeding-edge, compiler-level framework tailored specifically to optimize LLM and VLM serving on Apple Silicon via data-driven bit allocation.  
+
+nvfp4 (Microscaling FP4)The Concept: A 4-bit Floating-Point (FP4) data format explicitly optimized for modern NVIDIA GPU architectures (specifically Blackwell).  
+
+mixed_3_4 -Extreme-efficiency mixed partitioning using a mixed_3_4 quantization predicate in MLX.
+
+mxfp8: Microscaling 8-bit Floating Point based on the Open Compute Project (OCP) standard, utilizing custom Metal compute kernels on Apple Silicon.

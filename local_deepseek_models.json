@@ -1,0 +1,5 @@
+[
+  { "name": "mlx-community/deepseek-vl2-tiny-4bit" },
+  { "name": "mlx-community/deepseek-vl2-small-4bit" },
+  { "name": "mlx-community/deepseek-vl2-4bit" }
+] 

@@ -1,0 +1,5 @@
+[
+  { "name": "mlx-community/GLM-4.5V-4bit" },
+  { "name": "mlx-community/GLM-4.6V-4bit" },
+  { "name": "mlx-community/GLM-4.6V-Flash-4bit" }
+] 

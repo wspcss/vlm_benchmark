@@ -1,0 +1,8 @@
+[
+  { "name": "mlx-community/gemma-3-4b-it-qat-4bit" },
+  { "name": "mlx-community/gemma-3-12b-it-qat-4bit" },
+  { "name": "mlx-community/gemma-4-e2b-it-4bit" },
+  { "name": "mlx-community/gemma-4-e4b-it-4bit" },
+  { "name": "mlx-community/gemma-4-26b-a4b-it-4bit" },
+  { "name": "mlx-community/gemma-4-31b-it-4bit" }
+] 

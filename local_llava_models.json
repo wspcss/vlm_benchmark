@@ -1,0 +1,4 @@
+[
+  { "name": "mlx-community/llava-1.5-7b-4bit" },
+  { "name": "mlx-community/llava-v1.6-mistral-7b-4bit" }
+]   
