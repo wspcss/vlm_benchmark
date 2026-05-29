@@ -16,6 +16,7 @@ import time
 import base64
 
 # Local inference imports
+from PIL import Image
 from mlx_vlm import load as mlx_load
 from mlx_vlm.generate import generate as mlx_generate
 from mlx_vlm.prompt_utils import apply_chat_template
@@ -25,13 +26,32 @@ OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 JUDGE_MODEL = "openai/gpt-5.4"
 
-LOCAL_MODELS_FILE = "localqwen2b_quantiz_models.json"
+LOCAL_MODELS_FILES = ["local_meta_models.json"
+                    , "local_glm_models.json"
+]
 TEST_CASES_FILE = "test_case.json"
 MAX_TOKENS = 512
+
+# Hard cap on an image's longest edge before inference. Large screenshots
+# (e.g. 2880x1800) otherwise expand to 5000-7000+ prefill tokens, which triggers
+# Metal GPU faults / degenerate output. Aspect ratio is preserved (resize, not crop).
+# 1920 keeps native 1920x1080 untouched (~2600 prefill tokens, safely under the
+# fault threshold) while still downscaling larger 4K-ish screenshots.
+MAX_IMAGE_SIDE = 1920
 
 
 def sanitize_model_name(model_name):
     return model_name.replace("/", "_").strip()
+
+
+def load_image(image_path, max_side=MAX_IMAGE_SIDE):
+    """Open an image and downscale so its longest edge is <= max_side."""
+    img = Image.open(image_path).convert("RGB")
+    w, h = img.size
+    if max(w, h) > max_side:
+        scale = max_side / max(w, h)
+        img = img.resize((round(w * scale), round(h * scale)), Image.LANCZOS)
+    return img
 
 
 def encode_image_to_base64(image_path):
@@ -132,12 +152,14 @@ def run_local_inference(model, processor, image_path, question, max_tokens):
         num_images=1,
     )
 
+    image = load_image(image_path)
+
     start = time.time()
     result = mlx_generate(
         model,
         processor,
         prompt=prompt,
-        image=image_path,
+        image=image,
         max_tokens=max_tokens,
         temperature=0.0,
         verbose=False,
@@ -505,13 +527,15 @@ def main():
 
     # Determine which models to benchmark
     if args.all:
-        with open(LOCAL_MODELS_FILE) as f:
-            models_config = json.load(f)
-        models = [
-            entry["name"] if isinstance(entry, dict) else entry
-            for entry in models_config
-        ]
-        print(f"Found {len(models)} model(s) in {LOCAL_MODELS_FILE}")
+        models = []
+        for models_file in LOCAL_MODELS_FILES:
+            with open(models_file) as f:
+                models_config = json.load(f)
+            models += [
+                entry["name"] if isinstance(entry, dict) else entry
+                for entry in models_config
+            ]
+        print(f"Found {len(models)} model(s) across {LOCAL_MODELS_FILES}")
     elif args.model:
         models = [args.model]
     else:
@@ -574,7 +598,7 @@ def main():
 
     # Build a model label for filenames
     if args.all:
-        model_label = os.path.splitext(LOCAL_MODELS_FILE)[0]
+        model_label = "+".join(os.path.splitext(f)[0] for f in LOCAL_MODELS_FILES)
     elif args.model:
         model_label = sanitize_model_name(args.model)
     else:
