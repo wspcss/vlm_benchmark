@@ -24,13 +24,47 @@ from mlx_vlm.prompt_utils import apply_chat_template
 # OpenRouter judge constants
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-JUDGE_MODEL = "openai/gpt-5.4"
+# JUDGE_MODEL = "openai/gpt-5.4"
+JUDGE_MODEL = "deepseek/deepseek-v4-flash"
 
-LOCAL_MODELS_FILES = ["local_meta_models.json"
+LOCAL_MODELS_FILES = ["local_qwen_models.json"
+                    , "local_gemini_models.json"
                     , "local_glm_models.json"
+                    , "local_meta_models.json"
+                    , "local_deepseek_models.json"
 ]
+
 TEST_CASES_FILE = "test_case.json"
 MAX_TOKENS = 512
+
+def provider_key_from_file(models_file):
+    """Derive a provider key from a *_models.json filename.
+
+    local_qwen_models.json -> "qwen". Fully filename-driven, so adding a new
+    local_<provider>_models.json to LOCAL_MODELS_FILES groups it automatically.
+    """
+    base = os.path.splitext(os.path.basename(models_file))[0]
+    return base.replace("local_", "", 1).replace("_models", "")
+
+
+def provider_display(key):
+    """Human-readable label for a provider key (e.g. 'qwen' -> 'Qwen')."""
+    return key.capitalize() if key else "Other"
+
+
+def provider_for_model(model_name):
+    """Best-effort provider for a single model run (no source file known).
+
+    Matches the model id against the provider keys discovered from
+    LOCAL_MODELS_FILES, so it stays in sync with whatever files are configured.
+    """
+    n = model_name.lower()
+    for models_file in LOCAL_MODELS_FILES:
+        key = provider_key_from_file(models_file)
+        if key and key in n:
+            return provider_display(key)
+    return "Other"
+
 
 # Hard cap on an image's longest edge before inference. Large screenshots
 # (e.g. 2880x1800) otherwise expand to 5000-7000+ prefill tokens, which triggers
@@ -339,21 +373,34 @@ def generate_html_report(summaries, output_path):
 
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Build model comparison rows
-    comparison_rows = ""
+    # Group summaries by provider for the comparison table, preserving the order
+    # in which providers first appear.
+    grouped = {}
     for s in summaries:
-        avg_judge = s.get("avg_judge_score")
-        if avg_judge is not None:
-            if avg_judge >= 7:
-                score_badge = f'<span style="color:#16a34a;font-weight:bold;">{avg_judge:.1f}/10</span>'
-            elif avg_judge >= 4:
-                score_badge = f'<span style="color:#d97706;font-weight:bold;">{avg_judge:.1f}/10</span>'
-            else:
-                score_badge = f'<span style="color:#dc2626;font-weight:bold;">{avg_judge:.1f}/10</span>'
-        else:
-            score_badge = '<span style="color:#999;">N/A</span>'
+        grouped.setdefault(s.get("provider") or "Other", []).append(s)
+    show_provider_headers = len(grouped) > 1
 
-        comparison_rows += f"""
+    # Build model comparison rows, with a header row per provider group
+    comparison_rows = ""
+    for provider, group in grouped.items():
+        if show_provider_headers:
+            comparison_rows += f"""
+        <tr class="provider-row">
+          <td colspan="7">{html.escape(provider)}</td>
+        </tr>"""
+        for s in group:
+            avg_judge = s.get("avg_judge_score")
+            if avg_judge is not None:
+                if avg_judge >= 7:
+                    score_badge = f'<span style="color:#16a34a;font-weight:bold;">{avg_judge:.1f}/10</span>'
+                elif avg_judge >= 4:
+                    score_badge = f'<span style="color:#d97706;font-weight:bold;">{avg_judge:.1f}/10</span>'
+                else:
+                    score_badge = f'<span style="color:#dc2626;font-weight:bold;">{avg_judge:.1f}/10</span>'
+            else:
+                score_badge = '<span style="color:#999;">N/A</span>'
+
+            comparison_rows += f"""
         <tr>
           <td>{html.escape(s['model'])}</td>
           <td>{s['avg_tokens_per_second']:.1f}</td>
@@ -458,6 +505,8 @@ def generate_html_report(summaries, output_path):
     th {{ background: #f1f5f9; padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }}
     td {{ padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }}
     tr:hover {{ background: #f8fafc; }}
+    .provider-row td {{ background: #eef2ff; color: #3730a3; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #c7d2fe; }}
+    .provider-row:hover td {{ background: #eef2ff; }}
     .test-case-section {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
     .test-case-section h2 {{ font-size: 1.2rem; margin-bottom: 1rem; color: #334155; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; }}
     .case-info {{ display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: flex-start; flex-wrap: wrap; }}
@@ -531,13 +580,14 @@ def main():
         for models_file in LOCAL_MODELS_FILES:
             with open(models_file) as f:
                 models_config = json.load(f)
+            provider = provider_display(provider_key_from_file(models_file))
             models += [
-                entry["name"] if isinstance(entry, dict) else entry
+                (entry["name"] if isinstance(entry, dict) else entry, provider)
                 for entry in models_config
             ]
         print(f"Found {len(models)} model(s) across {LOCAL_MODELS_FILES}")
     elif args.model:
-        models = [args.model]
+        models = [(args.model, provider_for_model(args.model))]
     else:
         print("ERROR: Specify --model <model_id> or --all")
         sys.exit(1)
@@ -553,9 +603,9 @@ def main():
     summaries = []
     failed = []
 
-    for model_name in models:
+    for model_name, provider in models:
         print(f"\n{'─' * 70}")
-        print(f"  Loading model: {model_name}")
+        print(f"  Loading model: {model_name} ({provider})")
         print(f"{'─' * 70}")
 
         try:
@@ -567,6 +617,7 @@ def main():
 
         try:
             summary = run_benchmark(model_name, model, processor, tests, args.max_tokens)
+            summary["provider"] = provider
             summaries.append(summary)
         except Exception as e:
             print(f"\n  ❌ FAILED: {model_name}: {e}")
