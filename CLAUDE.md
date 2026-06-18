@@ -11,6 +11,27 @@ This is a VLM (Vision-Language Model) benchmark suite that evaluates how well mo
 
 Both scripts use an **LLM-as-judge** pattern: after each model answers a question, `openai/gpt-5.4` (via OpenRouter) scores the response 0–10 against a grounded answer. Results are saved to `output/` as JSON and HTML.
 
+## Image-size stability findings (read `progress.md` for full detail)
+
+`benchmark_image_sizes.py` tested every local model across an image-resolution ladder
+(360→3840px, `images/size/`) to find the **max image size each model handles before it
+crashes/hangs the Metal GPU or emits degenerate output**. Full detail, methodology, and the
+GPU-contamination fixes are in **`progress.md`**; the data is in
+`output/size_matrix_*.{json,html}` (sorted by provider/family/size). New sessions: start from
+`progress.md` for this topic.
+
+**Max supported resolution by family** (longest edge; failure is per-family, size-monotonic,
+and set by the image processor's prefill token count):
+
+| Max | Families |
+|---|---|
+| **3840px (4K, no limit)** | Gemma-3, Gemma-4, Llama-3.2-Vision, GLM-4.5V/4.6V, Qwen2-VL, Qwen2.5-VL (7B/32B), Qwen3.5, Qwen3.6, deepseek-vl2 (small/4bit) |
+| **1280px** | **Qwen3-VL (2B→32B)** — fails at 1920px ≈ 2061 prefill tokens; the only family with a real low ceiling |
+| **960px** | Qwen2.5-VL-3B |
+| **none** | deepseek-vl2-tiny (degenerate), llava-1.5 / llava-v1.6 (compat error) |
+
+`local_benchmark.py`'s `MAX_IMAGE_SIDE` exists to downscale screenshots under these limits.
+
 ## Running benchmarks
 
 Requires `OPENROUTER_API_KEY` in `.env` (sourced automatically by the shell scripts).
