@@ -1,5 +1,5 @@
 [
-  { "name": "mlx-community/deepseek-vl2-tiny-4bit" },
+  { "name": "mlx-community/deepseek-vl2-tiny-4bit", "skip": true, "reason": "Degenerate output at any size — does not support the 1920px test-case resolution" },
   { "name": "mlx-community/deepseek-vl2-small-4bit" },
   { "name": "mlx-community/deepseek-vl2-4bit" }
-] 
+]

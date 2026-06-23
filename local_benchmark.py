@@ -176,6 +176,27 @@ def judge_response(question, grounded_answer, model_response):
         return None
 
 
+def strip_box_markers(text):
+    """Remove GLM-4.6V's final-answer box markers from a response.
+
+    GLM-4.6V wraps its final answer in the special tokens
+    ``<|begin_of_box|>...<|end_of_box|>``. These are emitted by the model during
+    generation (not by the chat template), so there is no prompt-side flag to
+    suppress them — they must be stripped after the fact. Prefers the boxed
+    content if present, otherwise removes any stray marker.
+    """
+    if not text:
+        return text
+
+    box = re.search(r"<\|begin_of_box\|>(.*?)<\|end_of_box\|>", text, re.DOTALL)
+    if box:
+        text = box.group(1)
+    else:
+        text = text.replace("<|begin_of_box|>", "").replace("<|end_of_box|>", "")
+
+    return text.strip()
+
+
 def run_local_inference(model, processor, image_path, question, max_tokens):
     """Run inference on a local mlx_vlm model and return results."""
     # Build the prompt using the model's chat template
@@ -184,6 +205,10 @@ def run_local_inference(model, processor, image_path, question, max_tokens):
         model.config,
         question,
         num_images=1,
+        # Suppress chain-of-thought at the source. Thinking models (Qwen3.5/3.6,
+        # GLM-4.5V/4.6V) honor this in their chat template; non-thinking
+        # templates simply ignore the unused variable.
+        enable_thinking=False,
     )
 
     image = load_image(image_path)
@@ -201,7 +226,8 @@ def run_local_inference(model, processor, image_path, question, max_tokens):
     elapsed = time.time() - start
 
     return {
-        "response_text": result.text.strip(),
+        "response_text": strip_box_markers(result.text),
+        # "response_text": result.text.strip(),        
         "prompt_tokens": result.prompt_tokens,
         "generation_tokens": result.generation_tokens,
         "generation_tps": result.generation_tps,
@@ -367,8 +393,13 @@ def run_benchmark(model_name, model, processor, tests, max_tokens):
     return summary
 
 
-def generate_html_report(summaries, output_path):
-    """Generate an HTML report from benchmark results."""
+def generate_html_report(summaries, output_path, skipped_models=None):
+    """Generate an HTML report from benchmark results.
+
+    skipped_models: optional list of (model_name, provider, reason) tuples for
+    models excluded from the run (e.g. resolution-unsupported), documented in
+    their own section so the report explains why they aren't benchmarked.
+    """
     import html
 
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -487,6 +518,31 @@ def generate_html_report(summaries, output_path):
       </table>
     </div>"""
 
+    # Section listing models excluded from the run (resolution-unsupported, etc.)
+    skipped_section = ""
+    if skipped_models:
+        skipped_rows = ""
+        for name, provider, reason in skipped_models:
+            skipped_rows += f"""
+        <tr>
+          <td>{html.escape(name)}</td>
+          <td>{html.escape(provider or "")}</td>
+          <td>{html.escape(reason or "Unsupported at the test-case resolution")}</td>
+        </tr>"""
+        skipped_section = f"""
+    <div class="comparison skipped">
+      <h2>⚠️ Skipped — resolution unsupported ({len(skipped_models)})</h2>
+      <p style="color:#64748b;font-size:0.9rem;margin-bottom:1rem;">These models were not run because their family cannot handle the test-case image resolution (max 1920×1200). See <code>progress.md</code> for the full per-family limits.</p>
+      <table>
+        <thead>
+          <tr><th>Model</th><th>Provider</th><th>Reason</th></tr>
+        </thead>
+        <tbody>{skipped_rows}
+        </tbody>
+      </table>
+    </div>
+"""
+
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -501,6 +557,8 @@ def generate_html_report(summaries, output_path):
     .timestamp {{ color: #64748b; margin-bottom: 2rem; font-size: 0.95rem; }}
     .comparison {{ background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
     .comparison h2 {{ font-size: 1.2rem; margin-bottom: 1rem; color: #334155; }}
+    .skipped {{ border-left: 4px solid #f59e0b; }}
+    .skipped h2 {{ color: #b45309; }}
     table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
     th {{ background: #f1f5f9; padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }}
     td {{ padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }}
@@ -529,7 +587,7 @@ def generate_html_report(summaries, output_path):
         </tbody>
       </table>
     </div>
-
+    {skipped_section}
     {test_case_sections}
   </div>
 </body>
@@ -574,18 +632,27 @@ def main():
             print(f"ERROR: Image not found: {img} (test case {i})")
             sys.exit(1)
 
-    # Determine which models to benchmark
+    # Determine which models to benchmark. Models flagged "skip" in the JSON
+    # (e.g. those whose family can't handle the test-case resolution) are not run
+    # but are still recorded so the report documents why they were excluded.
+    skipped_models = []
     if args.all:
         models = []
         for models_file in LOCAL_MODELS_FILES:
             with open(models_file) as f:
                 models_config = json.load(f)
             provider = provider_display(provider_key_from_file(models_file))
-            models += [
-                (entry["name"] if isinstance(entry, dict) else entry, provider)
-                for entry in models_config
-            ]
+            for entry in models_config:
+                name = entry["name"] if isinstance(entry, dict) else entry
+                if isinstance(entry, dict) and entry.get("skip"):
+                    skipped_models.append((name, provider, entry.get("reason", "")))
+                else:
+                    models.append((name, provider))
         print(f"Found {len(models)} model(s) across {LOCAL_MODELS_FILES}")
+        if skipped_models:
+            print(f"Skipping {len(skipped_models)} model(s) flagged as resolution-unsupported:")
+            for name, _provider, reason in skipped_models:
+                print(f"   - {name}: {reason}")
     elif args.model:
         models = [(args.model, provider_for_model(args.model))]
     else:
@@ -666,7 +733,7 @@ def main():
 
     # Generate HTML report
     html_output = os.path.join(output_dir, f"local_results_{model_label}_{timestamp}.html")
-    generate_html_report(summaries, html_output)
+    generate_html_report(summaries, html_output, skipped_models=skipped_models)
     print(f"HTML report saved to: {html_output}")
 
     print("\n" + "=" * 70)

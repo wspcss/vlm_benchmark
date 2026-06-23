@@ -106,6 +106,17 @@ Each entry:
 
 Models are explicitly deleted and `gc.collect()` called between each model load to free Apple Silicon unified memory before loading the next model.
 
+### Suppressing chain-of-thought (local only)
+
+`run_local_inference` passes `enable_thinking=False` to `apply_chat_template`. `mlx_vlm` forwards this kwarg down to the model's HuggingFace chat template, where thinking models honor it by pre-filling a closed `<think></think>` block so **no reasoning is generated**:
+
+- **Qwen3.5 / Qwen3.6** — template emits `<think>\n\n</think>\n\n` at the generation prompt.
+- **GLM-4.5V / GLM-4.6V** — template appends `/nothink` to the user turn and prepends `<think></think>`.
+
+Non-thinking templates (Qwen2-VL, Gemma, Llama-Vision, deepseek-vl2) accept the kwarg as an unused variable and ignore it, so it's safe to pass unconditionally. Suppressing at the source avoids spending generation tokens on reasoning.
+
 ### Response parsing (local only)
 
-Model output is split on `</think>` to strip chain-of-thought reasoning before scoring: `result.text.split('</think>')[-1].strip()`
+`enable_thinking=False` handles the reasoning, so no chain-of-thought stripping is needed. The one remaining cleanup is GLM-4.6V's final-answer box markers: it wraps its answer in the special tokens `<|begin_of_box|>…<|end_of_box|>`. These are emitted by the **model during generation** (not by the chat template), so there is no prompt-side flag to suppress them — they must be stripped after the fact.
+
+`strip_box_markers()` (in `local_benchmark.py`) prefers the boxed content if present, otherwise removes any stray marker. Applied in `run_local_inference` so both the saved `model_response` and the judge input are clean; it's a no-op for all other models.
